@@ -1,0 +1,36 @@
+version: "3"
+
+vars:
+  TINY_FLAGS: "-target wasi -no-debug -tags=purego  -scheduler=none"
+
+
+tasks:
+  default:
+    cmds:
+      - task: build_all
+  clean:
+    desc: Clear output directory
+    cmds:
+      - rm -fr plugins
+  init:
+    desc: create output directory
+    cmds:
+      - mkdir plugins || echo "plugins directory already exists"
+  ansible:
+    desc: "Build ansible vault plugin "
+    cmds:
+      - tinygo build -o plugins/ansible_vault.wasm {{ .TINY_FLAGS }}  cipher/ansible/plugin.go
+  run_tests:
+    desc: "Build ansible vault plugin "
+    cmds:
+      - go test -v ./...
+    deps:
+      - task: build_all
+  build_all:
+    desc: "Building All binaries"
+    cmds:
+      - task: ansible
+#      - task: build_generate
+    deps:
+      - task: clean
+      - task: init
