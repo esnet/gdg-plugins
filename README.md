@@ -9,3 +9,8 @@ that allows the user to add custom behavior to [gdg](https://software.es.net/gdg
 Initially this is intended to work support a few ciphers that would help users. 
 
 Note, the code needs to be built using tinygo. 
+
+
+current plugns:
+  - ansible-vault cipher
+  - aes-256-gcm

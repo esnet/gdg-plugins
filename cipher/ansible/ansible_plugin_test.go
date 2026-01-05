@@ -5,15 +5,14 @@ package main
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	extism "github.com/extism/go-sdk"
 )
 
-const pluginPath = "../../plugins/ansible_vault.wasm"
+const pluginPath = "../../plugins/cipher_ansible.wasm"
 
-func TestEncodeIntegration(t *testing.T) {
+func TestEncodeAnsibleIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test")
 	}
@@ -38,8 +37,6 @@ func TestEncodeIntegration(t *testing.T) {
 
 	plugin, err := extism.NewPlugin(ctx, manifest, config, []extism.HostFunction{})
 	if err != nil {
-		p, _ := os.Getwd()
-		t.Log(p)
 		t.Fatalf("Failed to initialize plugin: %v", err)
 	}
 	defer plugin.Close(context.Background())
@@ -73,7 +70,7 @@ func TestEncodeIntegration(t *testing.T) {
 	}
 }
 
-func TestDecodeIntegration(t *testing.T) {
+func TestAnsibleDecodeIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test")
 	}
@@ -98,8 +95,6 @@ func TestDecodeIntegration(t *testing.T) {
 
 	plugin, err := extism.NewPlugin(ctx, manifest, config, []extism.HostFunction{})
 	if err != nil {
-		p, _ := os.Getwd()
-		t.Log(p)
 		t.Fatalf("Failed to initialize plugin: %v", err)
 	}
 	defer plugin.Close(context.Background())
