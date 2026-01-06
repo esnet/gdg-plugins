@@ -39,7 +39,6 @@ func deriveKey(passphrase string, salt []byte) []byte {
 
 //export Encode
 func Encode() int32 {
-	pdk.Log(pdk.LogInfo, "=== Encode started ===")
 
 	input := pdk.Input()
 	pdk.Log(pdk.LogDebug, fmt.Sprintf("Input length: %d bytes", len(input)))
@@ -106,13 +105,12 @@ func Encode() int32 {
 	mem := pdk.AllocateString(string(encoded))
 	pdk.OutputMemory(mem)
 
-	pdk.Log(pdk.LogInfo, fmt.Sprintf("Encrypted %d bytes to %d bytes (base64)", len(input), len(encoded)))
+	pdk.Log(pdk.LogDebug, fmt.Sprintf("Encrypted %d bytes to %d bytes (base64)", len(input), len(encoded)))
 	return 0
 }
 
 //export Decode
 func Decode() int32 {
-	pdk.Log(pdk.LogInfo, "=== Decode started ===")
 
 	input := pdk.InputString()
 	pdk.Log(pdk.LogDebug, fmt.Sprintf("Input length: %d", len(input)))
@@ -180,7 +178,7 @@ func Decode() int32 {
 	mem := pdk.AllocateBytes(plaintext)
 	pdk.OutputMemory(mem)
 
-	pdk.Log(pdk.LogInfo, fmt.Sprintf("Decrypted %d bytes (base64) to %d bytes", len(input), len(plaintext)))
+	pdk.Log(pdk.LogDebug, fmt.Sprintf("Decrypted %d bytes (base64) to %d bytes", len(input), len(plaintext)))
 	return 0
 }
 
