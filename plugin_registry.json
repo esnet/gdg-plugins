@@ -6,7 +6,12 @@
     "source": "https://github.com/esnet/gdg-plugins/tree/main/cipher/aes-256-gcm",
     "urlPattern": "https://github.com/esnet/gdg-plugins/raw/refs/tags/{version}/plugins/cipher_aes256_gcm.wasm",
     "versions": [
-        "0.1.0"
+        {
+          "version": "0.1.0",
+          "config_fields": [
+            "passphrase"
+          ],
+        }
     ]
   },
   {
@@ -16,7 +21,12 @@
     "source": "https://github.com/esnet/gdg-plugins/tree/main/cipher/ansible",
     "urlPattern": "https://github.com/esnet/gdg-plugins/raw/refs/tags/{version}/plugins/cipher_ansible.wasm",
     "versions": [
-        "0.1.0"
+        {
+          "version": "0.1.0",
+          "config_fields": [
+            "vault_password"
+          ],
+        }
     ]
   }
 ]
