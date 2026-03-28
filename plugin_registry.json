@@ -1,0 +1,22 @@
+[
+  {
+    "name": "aes-256-gcm",
+    "type": "cipher",
+    "descripition": "seeded impelementation of aes-256",
+    "source": "https://github.com/esnet/gdg-plugins/tree/main/cipher/aes-256-gcm",
+    "urlPattern": "https://github.com/esnet/gdg-plugins/raw/refs/tags/{version}/plugins/cipher_aes256_gcm.wasm",
+    "versions": [
+        "0.1.0"
+    ]
+  },
+  {
+    "name": "ansible-vault",
+    "type": "cipher",
+    "descripition": "golang impelementation of ansible-vault",
+    "source": "https://github.com/esnet/gdg-plugins/tree/main/cipher/ansible",
+    "urlPattern": "https://github.com/esnet/gdg-plugins/raw/refs/tags/{version}/plugins/cipher_ansible.wasm",
+    "versions": [
+        "0.1.0"
+    ]
+  }
+]
