@@ -8,6 +8,7 @@
     "versions": [
       {
         "version": "0.1.0",
+        "minimum_version": "0.9.0",
         "config_fields": [
           "passphrase"
         ]
@@ -23,6 +24,7 @@
     "versions": [
       {
         "version": "0.1.0",
+        "minimum_version": "0.9.0",
         "config_fields": [
           "vault_password"
         ]
