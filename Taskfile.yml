@@ -24,6 +24,10 @@ tasks:
     desc: "Build aes-256-gcm vault plugin "
     cmds:
       - tinygo build -o plugins/cipher_aes256_gcm.wasm {{ .TINY_FLAGS }}  cipher/aes-256-gcm/plugin.go
+  lookup_gsm:
+    desc: "Build Google Secret Manager lookup plugin"
+    cmds:
+      - tinygo build -o plugins/lookup_gsm.wasm {{ .TINY_FLAGS }}  lookup/gsm/plugin.go
   run_tests:
     desc: "Build ansible vault plugin "
     cmds:
@@ -35,6 +39,7 @@ tasks:
     cmds:
       - task: cipher_ansible
       - task: cipher_aes
+      - task: lookup_gsm
     deps:
       - task: clean
       - task: init
