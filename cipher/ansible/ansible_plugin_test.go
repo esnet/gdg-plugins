@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	extism "github.com/extism/go-sdk"
@@ -12,118 +13,152 @@ import (
 
 const pluginPath = "../../plugins/cipher_ansible.wasm"
 
-func TestEncodeAnsibleIntegration(t *testing.T) {
+// newTestPlugin builds a fresh extism.Plugin backed by the compiled
+// cipher_ansible.wasm, with the given config map applied verbatim (an
+// empty/nil map, or one missing "vault_password", exercises the
+// no-password error path).
+func newTestPlugin(t *testing.T, config map[string]string) *extism.Plugin {
+	t.Helper()
+	ctx := context.Background()
+
+	manifest := extism.Manifest{
+		Wasm: []extism.Wasm{
+			extism.WasmFile{Path: pluginPath},
+		},
+		Config: config,
+	}
+
+	pluginConfig := extism.PluginConfig{
+		EnableWasi: true,
+	}
+
+	plugin, err := extism.NewPlugin(ctx, manifest, pluginConfig, []extism.HostFunction{})
+	if err != nil {
+		t.Fatalf("Failed to initialize plugin: %v", err)
+	}
+	t.Cleanup(func() { plugin.Close(context.Background()) })
+	return plugin
+}
+
+// TestAnsibleEncryptDecryptRoundTrip verifies Encode/Decode round-trip
+// correctly. It intentionally does NOT assert against a fixed expected
+// ciphertext: ansible-vault-go's Encrypt generates a random salt per call
+// (see sosedoff/ansible-vault-go's generateRandomBytes), so the exact
+// ciphertext is never the same twice — only the round trip is stable.
+func TestAnsibleEncryptDecryptRoundTrip(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test")
 	}
 
-	ctx := context.Background()
-	wasmPath := pluginPath
+	plugin := newTestPlugin(t, map[string]string{"vault_password": "integration-test-password"})
 
-	manifest := extism.Manifest{
-		Wasm: []extism.Wasm{
-			extism.WasmFile{
-				Path: wasmPath,
-			},
-		},
-		Config: map[string]string{
-			"vault_password": "integration-test-password",
-		},
-	}
+	inputs := []string{"secret1", "secret2", "a longer secret value with spaces and punctuation!"}
 
-	config := extism.PluginConfig{
-		EnableWasi: true,
-	}
-
-	plugin, err := extism.NewPlugin(ctx, manifest, config, []extism.HostFunction{})
-	if err != nil {
-		t.Fatalf("Failed to initialize plugin: %v", err)
-	}
-	defer plugin.Close(context.Background())
-
-	// Test multiple encryptions
-	inputs := []string{
-		"secret1",
-		"secret2",
-	}
-
-	outputs := []string{
-		"$ANSIBLE_VAULT;1.1;AES256\n36333933636666383361613265316136336530613466633831386630646137323161393031653966\n3263346665383030353631646439386333316234626661350a643761626665373830646633323635\n30656136633539303763383835346663396663376436396433613763653137323537623139336266\n3538366365313131300a316261316561333938393730636635316237613638633664636564303537\n3962",
-		"$ANSIBLE_VAULT;1.1;AES256\n63383038623330333865633238646539363737383961386236363463396334346662356131383839\n3736653463613433323436656339393863636262643234350a353131336336656332343638346633\n62643265616366663630393339333434363235626631656464336264633763393539646138353931\n3737373165396136320a363363616566636632653737393337303765336439663831633637393063\n3831",
-	}
-
-	for ndx, input := range inputs {
-		exit, out, err := plugin.Call("Encode", []byte(input))
+	for _, input := range inputs {
+		exit, ciphertext, err := plugin.Call("Encode", []byte(input))
 		if err != nil {
 			t.Fatalf("Encode(%q) error = %v", input, err)
 		}
 		if exit != 0 {
-			t.Fatalf("Encode(%q) exit = %d, want 0", input, exit)
+			t.Fatalf("Encode(%q) exit = %d, want 0 (err=%q)", input, exit, plugin.GetError())
 		}
 
-		// Verify each encryption is different (has randomness)
-		output := string(out)
-		_, _ = ndx, outputs
-		if output != outputs[ndx] {
-			t.Errorf("Encode(%q) output = %q, want %q", input, output, outputs[ndx])
+		exit, plaintext, err := plugin.Call("Decode", ciphertext)
+		if err != nil {
+			t.Fatalf("Decode(%q) error = %v", ciphertext, err)
+		}
+		if exit != 0 {
+			t.Fatalf("Decode(%q) exit = %d, want 0 (err=%q)", ciphertext, exit, plugin.GetError())
+		}
+
+		if string(plaintext) != input {
+			t.Errorf("round trip mismatch: got %q, want %q", plaintext, input)
 		}
 	}
 }
 
-func TestAnsibleDecodeIntegration(t *testing.T) {
+// TestAnsibleEncode_ProducesDifferentCiphertextEachTime verifies the
+// randomness claim the previous version of this test only asserted in a
+// comment: encoding the same input twice must not produce identical
+// ciphertext (a random salt is mixed into every encryption).
+func TestAnsibleEncode_ProducesDifferentCiphertextEachTime(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test")
 	}
 
-	ctx := context.Background()
-	wasmPath := pluginPath
+	plugin := newTestPlugin(t, map[string]string{"vault_password": "integration-test-password"})
 
-	manifest := extism.Manifest{
-		Wasm: []extism.Wasm{
-			extism.WasmFile{
-				Path: wasmPath,
-			},
-		},
-		Config: map[string]string{
-			"vault_password": "integration-test-password",
-		},
-	}
-
-	config := extism.PluginConfig{
-		EnableWasi: true,
-	}
-
-	plugin, err := extism.NewPlugin(ctx, manifest, config, []extism.HostFunction{})
+	_, first, err := plugin.Call("Encode", []byte("same-input"))
 	if err != nil {
-		t.Fatalf("Failed to initialize plugin: %v", err)
+		t.Fatalf("first Encode error = %v", err)
 	}
-	defer plugin.Close(context.Background())
-
-	// Test multiple encryptions
-	inputs := []string{
-		"$ANSIBLE_VAULT;1.1;AES256\n36333933636666383361613265316136336530613466633831386630646137323161393031653966\n3263346665383030353631646439386333316234626661350a643761626665373830646633323635\n30656136633539303763383835346663396663376436396433613763653137323537623139336266\n3538366365313131300a316261316561333938393730636635316237613638633664636564303537\n3962",
-		"$ANSIBLE_VAULT;1.1;AES256\n63383038623330333865633238646539363737383961386236363463396334346662356131383839\n3736653463613433323436656339393863636262643234350a353131336336656332343638346633\n62643265616366663630393339333434363235626631656464336264633763393539646138353931\n3737373165396136320a363363616566636632653737393337303765336439663831633637393063\n3831",
+	_, second, err := plugin.Call("Encode", []byte("same-input"))
+	if err != nil {
+		t.Fatalf("second Encode error = %v", err)
 	}
 
-	outputs := []string{
-		"secret1",
-		"secret2",
+	if string(first) == string(second) {
+		t.Fatalf("expected two encryptions of the same input to differ (random salt), got identical ciphertext")
+	}
+}
+
+// TestAnsibleEncode_MissingPasswordReturnsError verifies a clean, non-panic
+// error when no vault_password is configured.
+func TestAnsibleEncode_MissingPasswordReturnsError(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test")
 	}
 
-	for ndx, input := range inputs {
-		exit, out, err := plugin.Call("Decode", []byte(input))
-		if err != nil {
-			t.Fatalf("Decode(%q) error = %v", input, err)
-		}
-		if exit != 0 {
-			t.Fatalf("Decode(%q) exit = %d, want 0", input, exit)
-		}
+	plugin := newTestPlugin(t, map[string]string{})
 
-		// Verify each encryption is different (has randomness)
-		output := string(out)
-		_, _ = ndx, outputs
-		if output != outputs[ndx] {
-			t.Errorf("Decode(%q) output = %q, want %q", input, output, outputs[ndx])
-		}
+	exit, _, err := plugin.Call("Encode", []byte("secret"))
+	if exit == 0 {
+		t.Fatalf("Call(Encode) exit = 0, want non-zero when no vault_password is configured")
+	}
+	if err == nil {
+		t.Fatalf("Call(Encode) expected an error when no vault_password is configured, got nil")
+	}
+	if !strings.Contains(err.Error(), "vault password") {
+		t.Fatalf("expected error mentioning a missing vault password, got %q", err)
+	}
+}
+
+// TestAnsibleDecode_MissingPasswordReturnsError mirrors the Encode case
+// for Decode.
+func TestAnsibleDecode_MissingPasswordReturnsError(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test")
+	}
+
+	plugin := newTestPlugin(t, map[string]string{})
+
+	exit, _, err := plugin.Call("Decode", []byte("$ANSIBLE_VAULT;1.1;AES256\nirrelevant"))
+	if exit == 0 {
+		t.Fatalf("Call(Decode) exit = 0, want non-zero when no vault_password is configured")
+	}
+	if err == nil {
+		t.Fatalf("Call(Decode) expected an error when no vault_password is configured, got nil")
+	}
+	if !strings.Contains(err.Error(), "vault password") {
+		t.Fatalf("expected error mentioning a missing vault password, got %q", err)
+	}
+}
+
+// TestAnsibleDecode_InvalidFormatReturnsError verifies that malformed vault
+// content (missing the "$ANSIBLE_VAULT;..." header) is rejected cleanly
+// with a correctly configured password, rather than panicking.
+func TestAnsibleDecode_InvalidFormatReturnsError(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test")
+	}
+
+	plugin := newTestPlugin(t, map[string]string{"vault_password": "integration-test-password"})
+
+	exit, _, err := plugin.Call("Decode", []byte("this is not a valid ansible vault payload"))
+	if exit == 0 {
+		t.Fatalf("Call(Decode) exit = 0, want non-zero for malformed vault content")
+	}
+	if err == nil {
+		t.Fatalf("expected a non-empty error for malformed vault content")
 	}
 }

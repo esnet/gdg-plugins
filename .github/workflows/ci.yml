@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  test:
+    name: Build guest plugins and run tests
+    runs-on: ubuntu-latest
+    env:
+      TINYGO_VERSION: "0.42.0"
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Install TinyGo
+        run: |
+          wget -q "https://github.com/tinygo-org/tinygo/releases/download/v${TINYGO_VERSION}/tinygo_${TINYGO_VERSION}_amd64.deb"
+          sudo dpkg -i "tinygo_${TINYGO_VERSION}_amd64.deb"
+          tinygo version
+
+      - name: Install Task
+        run: |
+          sh -c "$(curl -ssL https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
+          task --version
+
+      # Every guest plugin (cipher/*, lookup/gsm) is built to plugins/*.wasm
+      # before the Go test suite runs, since each package's *_plugin_test.go
+      # (tagged "!tinygo") loads the compiled binary from ../../plugins/ via
+      # github.com/extism/go-sdk rather than exercising the tinygo-only
+      # source directly.
+      - name: Build all guest plugins
+        run: task build_all
+
+      - name: Run tests
+        run: go test -v ./...
