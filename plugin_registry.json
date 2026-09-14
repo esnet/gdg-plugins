@@ -39,7 +39,7 @@
     "urlPattern": "https://github.com/esnet/gdg-plugins/raw/refs/tags/{version}/plugins/lookup_gsm.wasm",
     "versions": [
       {
-        "version": "0.1.0",
+        "version": "0.1.1",
         "minimum_version": "0.9.7",
         "config_fields": [
           "credentials"
